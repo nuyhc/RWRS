@@ -27,7 +27,7 @@ x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data["Y"], stratif
 train = pd.concat([x_train, y_train], axis=1).reset_index(drop=True)
 valid = pd.concat([x_val, y_val], axis=1).reset_index(drop=True)
 #
-data_n = 1
+data_n = 3
 #
 # RFE 이용해, n개의 피처 선택
 def select_n_ftrs(model, n, data=train, ftrs=ftrs, target="Y"):
@@ -78,7 +78,7 @@ def train_n(n, sn, data=train, target="Y"):
     sample_data,  pred_lrs, pred_dts, pred_rfs, pred_kmeans = [], [], [], [], []
     sftrs_lrs, sftrs_dts, sftrs_rfs, sftrs_kmeans = [], [], [], []
     for _ in range(data_n):
-        sample = data.sample(n, random_state=42)
+        sample = data.sample(n)
         sample = sample.drop_duplicates()
         sample_data.append(sample)
         print(sample.shape[0], end=" ", sep=" ")
@@ -143,7 +143,7 @@ def plot_static(result, n, sn):
     #
     plt.suptitle(f"Sample {n} / Ftrs {sn}")
     
-def plot_kmeans(result, c=0.9):
+def plot_kmeans(result, c=0.8):
     pred_y, cor_cd, cor_cs, cor_gpt, cor_gtp = [], [], [], [], []
     # best C
     for idx in range(data_n):
@@ -198,4 +198,47 @@ def plot_kmeans(result, c=0.9):
     mape = mean_absolute_percentage_error(y_val, cor_gtp.mean(axis=0))
     ax[4].set_title(f"Kmeans(T/P)\nM.R2: {r2:.4f}\nM.MAPE: {mape:.4f}")
     #
+    plt.show()
+    
+# 앙상블 시각화
+def plot_ensemble(result, w, c=0.8):
+    pred_y, cor_cd, cor_cs, cor_gpt, cor_gtp = [], [], [], [], []
+    for idx in range(data_n):
+        pred_y.append(result["Kmeans"]["P"][idx]["Pred_Y"]*c)
+        cor_cd.append(result["Kmeans"]["P"][idx]["Pred_Y"]*(1-result["Kmeans"]["P"][idx]["CosDist"])*c)
+        cor_cs.append(result["Kmeans"]["P"][idx]["Pred_Y"]*(result["Kmeans"]["P"][idx]["CosSim"])*c)
+        cor_gpt.append(result["Kmeans"]["P"][idx]["Pred_Y"]*result["Kmeans"]["P"][idx]["GrLivArea P/T"]*c)
+        cor_gtp.append(result["Kmeans"]["P"][idx]["Pred_Y"]*result["Kmeans"]["P"][idx]["GrLivArea T/P"]*c)
+    #
+    pred_y = pd.DataFrame(pred_y)
+    cor_cd = pd.DataFrame(cor_cd)
+    cor_cs = pd.DataFrame(cor_cs)
+    cor_gpt = pd.DataFrame(cor_gpt)
+    cor_gtp = pd.DataFrame(cor_gtp)
+    #
+    pred_lr_k = pd.DataFrame(result["LR"]["P"]).mean(axis=0)*(1-w) + pred_y.mean(axis=0)*w
+    pred_dt_k = pd.DataFrame(result["DT"]["P"]).mean(axis=0)*(1-w) + pred_y.mean(axis=0)*w
+    pred_rf_k = pd.DataFrame(result["RF"]["P"]).mean(axis=0)*(1-w) + pred_y.mean(axis=0)*w
+    #
+    fig, ax = plt.subplots(nrows=1, ncols=3, figsize=(30, 9))
+    #
+    ax[0].plot(y_val.values, color="black", linestyle=":")
+    ax[0].plot(pred_lr_k, color="r")
+    r2 = r2_score(y_val.values, pred_lr_k)
+    mape = mean_absolute_percentage_error(y_val.values, pred_lr_k)
+    ax[0].set_title(f"LR-K\nM.R2: {r2:.4f}\nM.MAPE: {mape:.4f}")
+    #
+    ax[1].plot(y_val.values, color="black", linestyle=":")
+    ax[1].plot(pred_dt_k, color="r")
+    r2 = r2_score(y_val.values, pred_dt_k)
+    mape = mean_absolute_percentage_error(y_val.values, pred_dt_k)
+    ax[1].set_title(f"DT-K\nM.R2: {r2:.4f}\nM.MAPE: {mape:.4f}")
+    #
+    ax[2].plot(y_val.values, color="black", linestyle=":")
+    ax[2].plot(pred_rf_k, color="r")
+    r2 = r2_score(y_val.values, pred_rf_k)
+    mape = mean_absolute_percentage_error(y_val.values, pred_rf_k)
+    ax[2].set_title(f"LR-K\nM.R2: {r2:.4f}\nM.MAPE: {mape:.4f}")
+    #
+    plt.suptitle(f"K weight={w}")
     plt.show()
