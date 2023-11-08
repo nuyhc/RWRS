@@ -64,15 +64,42 @@ def Train_N(n):
     sample_data = []
     pred_lrs, pred_dts, pred_rfs, pred_kmeans = [], [], [], []
     for _ in range(data_n):
-        sample = data.sample(n)
+        sample = data.sample(n, random_state=42)
         sample = sample.drop_duplicates()
         sample_data.append(sample)
         print(sample.shape[0], end=" ", sep=" ")
         #
         pred_lrs.append(ModelTrain.statics(LinearRegression(), sample))
-        pred_dts.append(ModelTrain.statics(DecisionTreeRegressor(random_state=42, max_depth=4), sample))
-        pred_rfs.append(ModelTrain.statics(RandomForestRegressor(random_state=42, max_depth=4), sample))
+        pred_dts.append(ModelTrain.statics(DecisionTreeRegressor(random_state=42, max_depth=3), sample))
+        pred_rfs.append(ModelTrain.statics(RandomForestRegressor(random_state=42, max_depth=3), sample))
         pred_kmeans.append(ModelTrain.kmeans(KMeans(n_clusters=n, init="k-means++", random_state=42), sample))
+    # 샘플링 결과 시각화
+    for _ in range(len(sample_data)):
+        sns.kdeplot(sample_data[_][target], fill=True, color=color_map[f"Trial {_+1}"])
+    plt.legend(color_map.keys())
+    plt.title(f"Sampling {n}")
+    plt.show()
+    return {
+        "SamplingData":sample_data,
+        "LR":pred_lrs,
+        "DT":pred_dts,
+        "RF":pred_rfs,
+        "Kmeans":pred_kmeans
+    }
+    
+def Train_N1(n):
+    sample_data = []
+    pred_lrs, pred_dts, pred_rfs, pred_kmeans = [], [], [], []
+    #
+    sample = data.sample(n, random_state=42)
+    sample = sample.drop_duplicates()
+    sample_data.append(sample)
+    print(sample.shape[0], end=" ", sep=" ")
+    #
+    pred_lrs.append(ModelTrain.statics(LinearRegression(), sample))
+    pred_dts.append(ModelTrain.statics(DecisionTreeRegressor(random_state=42, max_depth=3), sample))
+    pred_rfs.append(ModelTrain.statics(RandomForestRegressor(random_state=42, max_depth=3), sample))
+    pred_kmeans.append(ModelTrain.kmeans(KMeans(n_clusters=n, init="k-means++", random_state=42), sample))
     # 샘플링 결과 시각화
     for _ in range(len(sample_data)):
         sns.kdeplot(sample_data[_][target], fill=True, color=color_map[f"Trial {_+1}"])
@@ -124,18 +151,20 @@ def plot_kmeans(result, valid_data=valid, target=target):
     for idx in range(len(result["Kmeans"])):
         mape = mean_absolute_percentage_error(result["Kmeans"][idx]["Pred_Y"], valid_data[target].values)
         mapes.append(mape)
-        if best_mape>mape:
-            best_mape=mape
+        if best_mape>mape: best_mape=mape
         #
-        prev_mape = 1
-        adj_cor, adj_mape, select_sample = 0.1, 1, -1
-        for cor in np.arange(0.1, 3, 0.1):
-            if prev_mape>mean_absolute_percentage_error(result["Kmeans"][idx]["Pred_Y"]*cor, valid_data[target].values):
-                prev_mape=mean_absolute_percentage_error(result["Kmeans"][idx]["Pred_Y"]*cor, valid_data[target].values)
-                if prev_mape<adj_mape:
-                    adj_mape = prev_mape
-                    adj_cor = cor
-                    select_sample = idx
+        # prev_mape = best_mape      
+        # for cor in np.arange(0.1, 1.5, 0.1):
+        #     pprev_mape = prev_mape
+        #     adj_mape=mean_absolute_percentage_error(result["Kmeans"][idx]["Pred_Y"]*cor, valid_data[target].values)
+        #     if pprev_mape>adj_mape:
+        #         if prev_mape>adj_mape:
+        #             adj_mape = prev_mape
+        #             adj_cor = cor
+        #             select_sample = idx
+        adj_cor = 0.8
+        select_sample = -1
+        adj_mape = mean_absolute_percentage_error(result["Kmeans"][idx]["Pred_Y"]*adj_cor, valid_data[target].values)
 
     r_m_mapes, r_b_mape = np.mean(mapes), best_mape
     #
@@ -155,3 +184,61 @@ def Exp(n):
     plot_statics(result, n)
     plot_kmeans(result)
     return result
+
+def train_once(n):
+    sample = data.sample(n, random_state=42)
+    sample.drop_duplicates()
+    print(sample.shape[0])
+    #
+    lr = LinearRegression()
+    pred_lr = ModelTrain.statics(lr, sample)
+    dt = DecisionTreeRegressor(max_depth=3)
+    pred_dt = ModelTrain.statics(dt, sample)
+    rf = RandomForestRegressor(max_depth=3)
+    pred_rf = ModelTrain.statics(rf, sample)
+    kmeans = KMeans(n_clusters=10, init="k-means++")
+    pred_k = ModelTrain.kmeans(kmeans, sample)
+    #
+    mape_lr = np.mean((abs(valid[target] - pred_lr))/valid[target])
+    mape_dt = np.mean((abs(valid[target] - pred_dt))/valid[target])
+    mape_rf = np.mean((abs(valid[target] - pred_rf))/valid[target])
+    mape_k = np.mean(abs(valid[target] - pred_k["Pred_Y"])/valid[target])
+    #
+    best_mape = mape_k
+    best_c = -1
+    for c in np.arange(0.01 , 1.5, 0.01):
+        mape_c = np.mean(abs(valid[target] - pred_k["Pred_Y"]*c)/valid[target])
+        if mape_c < best_mape:
+            best_mape = mape_c
+            best_c = c
+    # print(f"{mape_lr:.2f} {mape_dt:.2f} {mape_rf:.2f} {mape_k:.2f} {best_mape:.2f} {best_c}")
+    #
+    # fig, ax = plt.subplots(nrows=1, ncols=5, figsize=(30, 5))
+    # ax[0].plot(valid[target].values, color="black", linestyle=":")
+    # ax[0].plot(pred_lr, color="red")
+    # ax[0].set_title(f"LR: {mape_lr:.2f}")
+    # #
+    # ax[1].plot(valid[target].values, color="black", linestyle=":")
+    # ax[1].plot(pred_dt, color="red")
+    # ax[1].set_title(f"DT: {mape_dt:.2f}")
+    # #
+    # ax[2].plot(valid[target].values, color="black", linestyle=":")
+    # ax[2].plot(pred_rf, color="red")
+    # ax[2].set_title(f"RF: {mape_rf:.2f}")
+    # #
+    # ax[3].plot(valid[target].values, color="black", linestyle=":")
+    # ax[3].plot(pred_k["Pred_Y"], color="red")
+    # ax[3].set_title(f"Kmeans: {mape_k:.2f}")
+    # #
+    # ax[4].plot(valid[target].values, color="black", linestyle=":")
+    # ax[4].plot(pred_k["Pred_Y"]*best_c, color="red")
+    # ax[4].set_title(f"Kmeans*{best_c}:{best_mape:.2f}")
+    return pd.DataFrame({
+        "Sample#":[n],
+        "LR":mape_lr,
+        "DT":mape_dt,
+        "RF":mape_rf,
+        "Kmeans":mape_k,
+        "adj_Kmeans":best_mape,
+        "adj_corr":[best_c]
+    })
