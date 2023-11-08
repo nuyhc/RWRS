@@ -196,7 +196,7 @@ def train_once(n):
     pred_dt = ModelTrain.statics(dt, sample)
     rf = RandomForestRegressor(max_depth=3)
     pred_rf = ModelTrain.statics(rf, sample)
-    kmeans = KMeans(n_clusters=10, init="k-means++")
+    kmeans = KMeans(n_clusters=n, init="k-means++")
     pred_k = ModelTrain.kmeans(kmeans, sample)
     #
     mape_lr = np.mean((abs(valid[target] - pred_lr))/valid[target])
