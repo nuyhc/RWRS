@@ -20,7 +20,7 @@ data = pd.read_csv("./Data/Prep_UsedCarSales/train.csv")
 ftrs = data.columns.tolist()[:-1]
 target = "Price"
 #
-x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data[target], test_size=0.2, random_state=42)
+x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data[target], test_size=0.5, random_state=42)
 train = pd.concat([x_train, y_train], axis=1).reset_index(drop=True)
 valid = pd.concat([x_val, y_val], axis=1).reset_index(drop=True)
 
@@ -49,16 +49,17 @@ class ModelTrain:
             left_on="Pred_Cluster", right_on="Train_Cluster", how="left"
         )
         # 코사인 거리 & 유사도
-        cd, cs = [], []
-        for ridx in range(len(pred_train)):
-            r_data = pred_train.iloc[ridx]
-            db_ftrs = r_data[[x+"_DB" for x in ftrs]]
-            input_ftrs = r_data[[x+"_Pred" for x in ftrs]]
-            cd.append(cosine_distances(pd.DataFrame(db_ftrs).T.values, pd.DataFrame(input_ftrs).T.values)[0][0])
-            cs.append(cosine_similarity(pd.DataFrame(db_ftrs).T.values, pd.DataFrame(input_ftrs).T.values)[0][0])
-        pred_train["CosDist"] = cd
-        pred_train["CosSim"] = cs
-        return pred_train[["Pred_Y", "Act_Y", "CosDist", "CosSim"]]
+        # cd, cs = [], []
+        # for ridx in range(len(pred_train)):
+        #     r_data = pred_train.iloc[ridx]
+        #     db_ftrs = r_data[[x+"_DB" for x in ftrs]]
+        #     input_ftrs = r_data[[x+"_Pred" for x in ftrs]]
+        #     cd.append(cosine_distances(pd.DataFrame(db_ftrs).T.values, pd.DataFrame(input_ftrs).T.values)[0][0])
+        #     cs.append(cosine_similarity(pd.DataFrame(db_ftrs).T.values, pd.DataFrame(input_ftrs).T.values)[0][0])
+        # pred_train["CosDist"] = cd
+        # pred_train["CosSim"] = cs
+        # return pred_train[["Pred_Y", "Act_Y", "CosDist", "CosSim"]]
+        return pred_train[["Pred_Y", "Act_Y"]]
     
 def Train_N(n):
     sample_data = []
@@ -206,7 +207,7 @@ def train_once(n):
     #
     best_mape = mape_k
     best_c = -1
-    for c in np.arange(0.01 , 1.5, 0.01):
+    for c in np.arange(0.001 , 1.5, 0.001):
         mape_c = np.mean(abs(valid[target] - pred_k["Pred_Y"]*c)/valid[target])
         if mape_c < best_mape:
             best_mape = mape_c
