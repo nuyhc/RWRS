@@ -16,9 +16,9 @@ warnings.filterwarnings("ignore")
 
 color_map = {f"Trial {k+1}":v for k, v in zip([x for x in range(0, 10)], sns.color_palette())}
 #
-data = pd.read_csv("./Data/Prep_UsedCarSales/train.csv")
+data = pd.read_csv("./Data/Prep_AMES/sig_train.csv")
 ftrs = data.columns.tolist()[:-1]
-target = "Price"
+target = "Y"
 #
 x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data[target], test_size=0.5, random_state=42)
 train = pd.concat([x_train, y_train], axis=1).reset_index(drop=True)
@@ -234,7 +234,7 @@ def train_once(n):
     # ax[4].plot(valid[target].values, color="black", linestyle=":")
     # ax[4].plot(pred_k["Pred_Y"]*best_c, color="red")
     # ax[4].set_title(f"Kmeans*{best_c}:{best_mape:.2f}")
-    return pd.DataFrame({
+    mape_df = pd.DataFrame({
         "Sample#":[n],
         "LR":mape_lr,
         "DT":mape_dt,
@@ -243,3 +243,10 @@ def train_once(n):
         "adj_Kmeans":best_mape,
         "adj_corr":[best_c]
     })
+    pred_df = {
+        "LR":pred_lr,
+        "DT":pred_dt,
+        "RF":pred_rf,
+        "Kmeans":pred_k
+    }
+    return mape_df, pred_df
