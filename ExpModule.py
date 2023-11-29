@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.lines import Line2D
 #
 from sklearn.linear_model import LinearRegression
 from sklearn.tree import DecisionTreeRegressor
@@ -20,7 +21,7 @@ data = pd.read_csv("./Data/Prep_AMES/sig_train.csv")
 ftrs = data.columns.tolist()[:-1]
 target = "Y"
 #
-x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data[target], test_size=0.5, random_state=42)
+x_train, x_val, y_train, y_val = train_test_split(data[ftrs], data[target], test_size=0.3, random_state=42)
 train = pd.concat([x_train, y_train], axis=1).reset_index(drop=True)
 valid = pd.concat([x_val, y_val], axis=1).reset_index(drop=True)
 
@@ -189,8 +190,10 @@ def Exp(n):
 def train_once(n):
     sample = data.sample(n, random_state=42)
     sample.drop_duplicates()
-    print(sample.shape[0])
+    print(sample.shape[0], end=" ", sep=" ")
+    if sample.shape[0]%100==0: print()
     #
+    models = []
     lr = LinearRegression()
     pred_lr = ModelTrain.statics(lr, sample)
     dt = DecisionTreeRegressor(max_depth=3)
@@ -204,6 +207,8 @@ def train_once(n):
     mape_dt = np.mean((abs(valid[target] - pred_dt))/valid[target])
     mape_rf = np.mean((abs(valid[target] - pred_rf))/valid[target])
     mape_k = np.mean(abs(valid[target] - pred_k["Pred_Y"])/valid[target])
+    #
+    models.append([lr, dt, rf, kmeans])
     #
     best_mape = mape_k
     best_c = -1
@@ -249,4 +254,4 @@ def train_once(n):
         "RF":pred_rf,
         "Kmeans":pred_k
     }
-    return mape_df, pred_df
+    return mape_df, pred_df, models
